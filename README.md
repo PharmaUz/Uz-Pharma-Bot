@@ -21,7 +21,7 @@ A Telegram bot for pharmaceutical services in Uzbekistan. Features partnership a
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/Uz-Pharma-Bot.git
+git clone https://github.com/PharmaUz/Uz-Pharma-Bot.git
 cd Uz-Pharma-Bot
 ```
 
