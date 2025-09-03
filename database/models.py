@@ -3,6 +3,7 @@ from .db import Base
 
 
 class Application(Base):
+    """ User applications for medicine delivery """
     __tablename__ = "applications"
 
     id = Column(Integer, primary_key=True, index=True)
