@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, BigInteger, func
 from .db import Base
 
 
@@ -11,3 +11,14 @@ class Application(Base):
     pharmacy_name = Column(String, nullable=False)  # Address (currently stored as pharmacy_name)
     approved = Column(Boolean, default=None)  # True = approved, False = rejected, None = pending
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # Creation timestamp
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(BigInteger, nullable=False)
+    username = Column(String, nullable=True)
+    text = Column(String, nullable=False)
+    approved = Column(Boolean, default=None)  # True = approved, False = rejected, None = pending
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
