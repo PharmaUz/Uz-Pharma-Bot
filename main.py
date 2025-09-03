@@ -3,7 +3,7 @@ import os
 from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 
-from handlers import start, cooperation
+from handlers import start, cooperation, feedback
 from database.db import engine, Base
 
 # Load .env
@@ -17,6 +17,7 @@ dp = Dispatcher()
 # Connect routers
 dp.include_router(start.router)
 dp.include_router(cooperation.router)
+dp.include_router(feedback.router)
 
 
 async def create_tables():
@@ -37,3 +38,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
