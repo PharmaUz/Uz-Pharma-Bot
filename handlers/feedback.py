@@ -97,10 +97,12 @@ async def reject_comment_handler(callback: types.CallbackQuery):
         await callback.answer("❌ Callback data noto‘g‘ri keldi")
         return
 
-    await callback.bot.send_message(user_id,    "❌ Fikringiz rad etildi.")
+    await callback.bot.send_message(user_id,"❌ Fikringiz rad etildi.")
     await callback.answer("Fikr rad etildi ❌", show_alert=True)
 
     # Foydalanuvchining state’ini tozalaymiz
     storage = callback.bot['fsm_storage']
     user_state = FSMContext(storage, chat_id=user_id, user_id=user_id)
     await user_state.clear()
+
+#test push
