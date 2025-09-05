@@ -184,3 +184,6 @@ For questions or support, please contact the project maintainer.
 ---
 
 **Note**: This bot is currently in development. The partnership module is functional, but other features are planned for future releases.
+
+
+[![Dependabot Updates](https://github.com/PharmaUz/Uz-Pharma-Bot/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/PharmaUz/Uz-Pharma-Bot/actions/workflows/dependabot/dependabot-updates)
