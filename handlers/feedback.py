@@ -108,7 +108,7 @@ async def admin_feedback_decision(callback: types.CallbackQuery):
             )
             await callback.bot.send_message(
                 chat_id=user_id,
-                text=f"🎉 Fikringiz tasdiqlandi! Rahmat."
+                text=f"Fikringiz tasdiqlandi! Rahmat."
             )
         except Exception as e:
             print(f"Database error: {e}")
