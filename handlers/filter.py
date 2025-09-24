@@ -38,7 +38,7 @@ async def inline_drug_search(inline_query: types.InlineQuery):
     try:
         async with async_session() as session:
             if query:
-                # Search by drug name and category
+                # Search by drug name, category or manufacturer
                 stmt = select(Drug).where(
                     or_(
                         Drug.name.ilike(f"%{query}%"),
@@ -47,10 +47,8 @@ async def inline_drug_search(inline_query: types.InlineQuery):
                     )
                 ).limit(20)
             else:
-                # If query is empty, show drugs with the highest availability
-                stmt = select(Drug).where(
-                    Drug.residual > 0
-                ).order_by(Drug.residual.desc()).limit(10)
+                # If query is empty, just return the latest 10 drugs
+                stmt = select(Drug).limit(10)
 
             result = await session.execute(stmt)
             drugs = result.scalars().all()
@@ -75,7 +73,6 @@ async def inline_drug_search(inline_query: types.InlineQuery):
         # Full information about the drug
         drug_info = f"💊 <b>{drug.name}</b>\n"
 
-        # Additional information
         if hasattr(drug, 'strength') and drug.strength:
             drug_info += f"📏 Miqdori: {drug.strength}\n"
         if hasattr(drug, 'manufacturer') and drug.manufacturer:
@@ -85,44 +82,37 @@ async def inline_drug_search(inline_query: types.InlineQuery):
         if hasattr(drug, 'price') and drug.price and drug.price > 0:
             drug_info += f"💰 Narxi: {drug.price:,} so'm\n"
         
-        # Remaining stock
-        if hasattr(drug, 'residual') and drug.residual is not None:
-            if drug.residual > 0:
-                drug_info += f"✅ Mavjud: {drug.residual} dona\n"
-            else:
-                drug_info += "❌ Tugagan\n"
-        
-        # Prescription requirement
         if hasattr(drug, 'prescription_required') and drug.prescription_required:
             drug_info += "⚠️ Retsept talab etiladi\n"
         
-        # Category
         if hasattr(drug, 'category') and drug.category:
             drug_info += f"🏷️ Kategoriya: {drug.category}\n"
         
-        # Description
         if hasattr(drug, 'description') and drug.description:
             description = drug.description[:200] + "..." if len(drug.description) > 200 else drug.description
             drug_info += f"\n📝 Tavsif: {description}"
 
-        # Inline result title
         title = drug.name
         if hasattr(drug, 'strength') and drug.strength:
             title += f" ({drug.strength})"
 
-        # Inline result description
         description_parts = []
         if hasattr(drug, 'manufacturer') and drug.manufacturer:
             description_parts.append(drug.manufacturer)
         if hasattr(drug, 'price') and drug.price and drug.price > 0:
             description_parts.append(f"{drug.price:,} so'm")
-        if hasattr(drug, 'residual') and drug.residual is not None:
-            if drug.residual <= 0:
-                description_parts.append("❌ Tugagan")
-            else:
-                description_parts.append(f"✅ {drug.residual} dona")
 
         description = " • ".join(description_parts)
+
+        # Create inline keyboard for each drug with "Add to Cart" button
+        drug_keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [types.InlineKeyboardButton(
+                    text="➕ Savatga qo'shish",
+                    callback_data=f"add_to_cart:{drug.id}"
+                )]
+            ]
+        )
 
         articles.append(
             InlineQueryResultArticle(
@@ -137,12 +127,11 @@ async def inline_drug_search(inline_query: types.InlineQuery):
                         f"{drug_info}"
                     ),
                     parse_mode="HTML"
-                )
+                ),
+                reply_markup=drug_keyboard
             )
         )
 
-
-    # If no results found
     if not articles and query:
         articles.append(
             InlineQueryResultArticle(
@@ -168,10 +157,9 @@ async def inline_drug_search(inline_query: types.InlineQuery):
     try:
         await inline_query.answer(
             results=articles,
-            cache_time=30,  # 30 seconds cache
+            cache_time=30,
             is_personal=False
         )
     except Exception as e:
         logger.error(f"Error answering inline query: {e}")
-        # If an error occurs, return an empty result
         await inline_query.answer(results=[], cache_time=5)

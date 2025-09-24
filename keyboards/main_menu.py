@@ -5,11 +5,11 @@ def get_main_menu():
     """Return the main menu inline keyboard"""
     menu_buttons = [
         [InlineKeyboardButton(text="💊 Dori qidirish", callback_data="search_drug")],
-        [InlineKeyboardButton(text="🚚 Dori yetkazib berish", callback_data="delivery")],
+        [InlineKeyboardButton(text="🚚 Dori xarid qilish", callback_data="buy_drug")],
         [InlineKeyboardButton(text="🤖 AI konsultatsiya", callback_data="ai_consult")],
         [InlineKeyboardButton(text="🤝 Hamkorlik", callback_data="cooperation")],
         [InlineKeyboardButton(text="💬 Fikr", callback_data="feedback")],
-        [InlineKeyboardButton(text="📦 Mening buyurtmalarim", callback_data="my_orders")],
+        [InlineKeyboardButton(text="🛍 Savatcha", callback_data="view_cart")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=menu_buttons)
 
