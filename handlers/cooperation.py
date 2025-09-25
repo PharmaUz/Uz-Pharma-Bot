@@ -8,7 +8,7 @@ from database.db import async_session
 from database.models import Application
 from dotenv import load_dotenv
 
-# Load environment variables from .env
+# === Load environment variables ===
 load_dotenv()
 ADMIN_ID = os.getenv("ADMIN_ID")
 if ADMIN_ID is None:
@@ -18,8 +18,16 @@ ADMIN_ID = int(ADMIN_ID)
 router = Router()
 
 
-# === FSM steps ===
 class CooperationForm(StatesGroup):
+    """
+    FSM for cooperation (partner application) process.
+    Steps:
+    - name → organization name
+    - contact → contact info (phone/email)
+    - address → address
+    - license_photo → license/certificate photo
+    - confirm → user confirmation
+    """
     name = State()
     contact = State()
     address = State()
@@ -27,9 +35,12 @@ class CooperationForm(StatesGroup):
     confirm = State()
 
 
-# 1. Triggered when "Cooperation" button is pressed
 @router.callback_query(lambda c: c.data == "cooperation")
 async def start_cooperation(callback: types.CallbackQuery, state: FSMContext):
+    """
+    Step 1: Start cooperation process.
+    Asks the user to enter organization name.
+    """
     await callback.message.answer(
         "🤝 Hamkorlik moduli\n\n"
         "🏢 Tashkilot nomini kiriting:"
@@ -37,33 +48,41 @@ async def start_cooperation(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(CooperationForm.name)
 
 
-# 2. Organization name
 @router.message(StateFilter(CooperationForm.name))
 async def process_name(message: types.Message, state: FSMContext):
+    """
+    Step 2: Save organization name and ask for contact info.
+    """
     await state.update_data(name=message.text)
     await message.answer("📞 Aloqa maʼlumotlarini kiriting (telefon/email):")
     await state.set_state(CooperationForm.contact)
 
 
-# 3. Contact information
 @router.message(StateFilter(CooperationForm.contact))
 async def process_contact(message: types.Message, state: FSMContext):
+    """
+    Step 3: Save contact info and ask for address.
+    """
     await state.update_data(contact=message.text)
     await message.answer("📍 Manzilni kiriting:")
     await state.set_state(CooperationForm.address)
 
 
-# 4. Address
 @router.message(StateFilter(CooperationForm.address))
 async def process_address(message: types.Message, state: FSMContext):
+    """
+    Step 4: Save address and ask for license/certificate photo.
+    """
     await state.update_data(address=message.text)
     await message.answer("📷 Litsenziya yoki sertifikat rasmini yuboring (foto):")
     await state.set_state(CooperationForm.license_photo)
 
 
-# 5. Document photo (must be a photo)
 @router.message(StateFilter(CooperationForm.license_photo))
 async def process_license(message: types.Message, state: FSMContext):
+    """
+    Step 5: Save license photo and show confirmation message with summary.
+    """
     if not message.photo:
         await message.answer("❌ Iltimos, rasm yuboring.")
         return
@@ -80,13 +99,21 @@ async def process_license(message: types.Message, state: FSMContext):
         "Maʼlumotlar to'g'rimi?"
     )
 
-    await message.answer_photo(photo=photo_id, caption=caption, reply_markup=get_confirm_keyboard())
+    await message.answer_photo(
+        photo=photo_id,
+        caption=caption,
+        reply_markup=get_confirm_keyboard()
+    )
     await state.set_state(CooperationForm.confirm)
 
 
-# 6. User confirmation (Yes / No)
 @router.callback_query(StateFilter(CooperationForm.confirm))
 async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
+    """
+    Step 6: Handle user confirmation.
+    - If yes → send application to admin
+    - If no → cancel and return to main menu
+    """
     data = await state.get_data()
 
     if callback.data == "confirm_yes":
@@ -101,7 +128,7 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
         user_id = callback.from_user.id
         await state.update_data(user_id=user_id)
 
-        # Send to admin (with confirmation buttons)
+        # Send application to admin
         caption = (
             "📋 Yangi hamkorlik so'rovi:\n\n"
             f"👤 Foydalanuvchi: @{callback.from_user.username or callback.from_user.full_name}\n"
@@ -112,7 +139,6 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
             "Ma'lumotlarni tasdiqlaysizmi?"
         )
 
-        # Admin action buttons
         admin_keyboard = types.InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -138,78 +164,80 @@ async def confirm_data(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
 
 
-# 7. Admin approves/rejects
 @router.callback_query(lambda c: c.data.startswith("admin_approve_") or c.data.startswith("admin_reject_"))
 async def admin_decision(callback: types.CallbackQuery):
+    """
+    Step 7: Handle admin decision (approve/reject).
+    - If approved → save application to DB and notify user
+    - If rejected → notify user about rejection
+    """
     if callback.from_user.id != ADMIN_ID:
         await callback.answer("❌ Sizda ruxsat yo'q!")
         return
 
-    action, user_id = callback.data.split("_", 1)[0], callback.data.split("_")[-1]
-    user_id = int(user_id)
+    decision = "approve" if "approve" in callback.data else "reject"
+    user_id = int(callback.data.split("_")[-1])
 
-    if action == "admin":
-        decision = callback.data.split("_")[1]  # approve or reject
+    if decision == "approve":
+        try:
+            # Extract data from caption
+            caption_text = callback.message.caption
+            lines = caption_text.split('\n')
 
-        if decision == "approve":
-            try:
-                # Extract user data from caption
-                caption_text = callback.message.caption
-                lines = caption_text.split('\n')
+            name, contact, address = "", "", ""
+            for line in lines:
+                if "🏢 Tashkilot:" in line:
+                    name = line.split("🏢 Tashkilot:")[1].strip()
+                elif "📞 Aloqa:" in line:
+                    contact = line.split("📞 Aloqa:")[1].strip()
+                elif "📍 Manzil:" in line:
+                    address = line.split("📍 Manzil:")[1].strip()
 
-                # Parse data
-                name = ""
-                contact = ""
-                address = ""
-
-                for line in lines:
-                    if "🏢 Tashkilot:" in line:
-                        name = line.split("🏢 Tashkilot:")[1].strip()
-                    elif "📞 Aloqa:" in line:
-                        contact = line.split("📞 Aloqa:")[1].strip()
-                    elif "📍 Manzil:" in line:
-                        address = line.split("📍 Manzil:")[1].strip()
-
-                # Save to database
-                async with async_session() as session:
-                    new_application = Application(
-                        full_name=name,
-                        phone=contact,
-                        pharmacy_name=address,
-                        approved=True
-                    )
-                    session.add(new_application)
-                    await session.commit()
-
-                    app_id = new_application.id
-
-                # Notify admin and user
-                await callback.message.edit_caption(
-                    caption=callback.message.caption + f"\n\n✅ TASDIQLANDI (ID: {app_id})",
-                    reply_markup=None
+            # Save to database
+            async with async_session() as session:
+                new_application = Application(
+                    full_name=name,
+                    phone=contact,
+                    pharmacy_name=address,
+                    approved=True
                 )
+                session.add(new_application)
+                await session.commit()
+                app_id = new_application.id
 
-                await callback.bot.send_message(
-                    chat_id=user_id,
-                    text=f"🎉 Tabriklaymiz! Hamkorlik so'rovingiz tasdiqlandi!\n📝 Ariza raqami: #{app_id}"
-                )
-
-            except Exception as e:
-                print(f"Database saving error: {e}")
-                await callback.answer("❌ Error while saving to database!")
-
-        elif decision == "reject":
-            # Update only admin message
+            # Update admin message
             await callback.message.edit_caption(
-                caption=callback.message.caption + "\n\n❌ RAD ETILDI",
+                caption=callback.message.caption + f"\n\n✅ TASDIQLANDI (ID: {app_id})",
                 reply_markup=None
             )
 
-            # Notify user about rejection
+            # Notify user
             await callback.bot.send_message(
                 chat_id=user_id,
-                text="❌ Afsuski, hamkorlik so'rovingiz rad etildi.\n"
-                     "Batafsil ma'lumot uchun admin bilan bog'laning."
+                text=(
+                    f"🎉 Tabriklaymiz! Hamkorlik so'rovingiz tasdiqlandi!\n"
+                    f"📝 Ariza raqami: #{app_id}"
+                )
             )
+
+        except Exception as e:
+            print(f"Database saving error: {e}")
+            await callback.answer("❌ Error while saving to database!")
+
+    elif decision == "reject":
+        # Update admin message
+        await callback.message.edit_caption(
+            caption=callback.message.caption + "\n\n❌ RAD ETILDI",
+            reply_markup=None
+        )
+
+        # Notify user
+        await callback.bot.send_message(
+            chat_id=user_id,
+            text=(
+                "❌ Afsuski, hamkorlik so'rovingiz rad etildi.\n"
+                "Batafsil ma'lumot uchun admin bilan bog'laning."
+            )
+        )
 
     await callback.answer()
