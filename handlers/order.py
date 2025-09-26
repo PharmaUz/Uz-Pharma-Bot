@@ -1,11 +1,13 @@
 import logging
-
+from main import bot
 from aiogram import Router, types
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
+from aiogram.types import CallbackQuery
 
 from database.db import async_session
 from database.models import Drug, Cart
+from keyboards.main_menu import get_main_menu
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -42,7 +44,7 @@ async def start_drug_search(callback: types.CallbackQuery, state: FSMContext):
 
 # ------------------ Cart Functionality ------------------ #
 @router.callback_query(lambda c: c.data.startswith("add_to_cart:"))
-async def add_to_cart(callback: types.CallbackQuery):
+async def add_to_cart(callback: CallbackQuery):
     """
     Add a drug to the user's cart.
 
@@ -79,8 +81,15 @@ async def add_to_cart(callback: types.CallbackQuery):
                 await session.commit()
                 await callback.answer("✅ Dori savatga qo'shildi!", show_alert=True)
 
-            # Show main menu
-            await show_main_menu(callback.message, callback.from_user)
+        # 🛍 Menyu ko‘rsatish
+        if callback.message:  # Agar callback message bo'lsa
+            await callback.message.answer("🏠 Asosiy menyu:", reply_markup=get_main_menu())
+        else:  # Inline query orqali kelgan bo'lsa
+            await bot.send_message(user_id, "🏠 Asosiy menyu:", reply_markup=get_main_menu())
+
+    except Exception as e:
+        logger.error(f"Error adding to cart: {e}")
+        await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
 
     except Exception as e:
         logger.error(f"Error adding to cart: {e}")
