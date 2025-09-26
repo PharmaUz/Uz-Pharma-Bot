@@ -1,5 +1,5 @@
 import logging
-from main import bot
+from loader import bot
 from aiogram import Router, types
 from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
@@ -82,14 +82,10 @@ async def add_to_cart(callback: CallbackQuery):
                 await callback.answer("✅ Dori savatga qo'shildi!", show_alert=True)
 
         # 🛍 Menyu ko‘rsatish
-        if callback.message:  # Agar callback message bo'lsa
+        if callback.message:
             await callback.message.answer("🏠 Asosiy menyu:", reply_markup=get_main_menu())
-        else:  # Inline query orqali kelgan bo'lsa
+        else:
             await bot.send_message(user_id, "🏠 Asosiy menyu:", reply_markup=get_main_menu())
-
-    except Exception as e:
-        logger.error(f"Error adding to cart: {e}")
-        await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
 
     except Exception as e:
         logger.error(f"Error adding to cart: {e}")
