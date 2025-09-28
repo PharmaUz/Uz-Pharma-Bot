@@ -2,41 +2,44 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import declarative_base
 from utils.config import DATABASE_URL
 
-# Create async engine
+# 🔹 Base class for models
+Base = declarative_base()
+
+# 🔹 Async engine
 engine = create_async_engine(
-    DATABASE_URL, 
-    echo=False,  # Production da False qiling
+    DATABASE_URL,
+    echo=False,          
     pool_pre_ping=True,
     pool_recycle=300
 )
 
-# Base class for models
-Base = declarative_base()
-
-# Async session factory
+# 🔹 Session factory
 async_session = async_sessionmaker(
-    engine, 
-    class_=AsyncSession, 
+    engine,
+    class_=AsyncSession,
     expire_on_commit=False
 )
 
-async def get_session() -> AsyncSession: # type: ignore
-    """Provide a new async database session"""
+# 🔹 Session generator
+async def get_session() -> AsyncSession:  
+    """Har safar yangi session qaytaradi"""
     async with async_session() as session:
         try:
             yield session
-        except Exception as e:
+        except Exception:
             await session.rollback()
             raise
         finally:
             await session.close()
 
-# Database initialization
+
 async def init_db():
-    """Initialize database tables"""
+    """Bazadagi barcha jadvalni yaratish"""
     async with engine.begin() as conn:
+        from . import models
         await conn.run_sync(Base.metadata.create_all)
 
+
 async def close_db():
-    """Close database connection"""
+    """Bazaga ulanishni yopish"""
     await engine.dispose()
