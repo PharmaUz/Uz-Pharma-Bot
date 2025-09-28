@@ -17,7 +17,6 @@ from .db import Base
 class BaseModel(Base):
     __abstract__ = True
     def __init__(self, *args, **kwargs):
-            # SQLAlchemy Base __init__ ni chaqiramiz
             super().__init__(*args, **kwargs)
 
 
@@ -157,3 +156,16 @@ class OrderItem(BaseModel):
 
     def __repr__(self):
         return f"<OrderItem(order_id={self.order_id}, drug_id={self.drug_id}, quantity={self.quantity})>"
+    
+
+class User(BaseModel):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    telegram_id = Column(BigInteger, unique=True, nullable=False)
+    username = Column(String, nullable=True)
+    full_name = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+
+    def __repr__(self):
+        return f"<User {self.telegram_id} - {self.username}>"
