@@ -76,24 +76,24 @@ class Pharmacy(Base):
     phone = Column(String, nullable=True)
     
     # Geographic coordinates for location-based search
-    latitude = Column(Float, nullable=True)  # Latitude coordinate
-    longitude = Column(Float, nullable=True)  # Longitude coordinate
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     
     # Additional location information
-    district = Column(String, nullable=True)  # District name (e.g., "Chilonzor", "Yunusobod")
-    city = Column(String, nullable=True, default="Tashkent")  # City name
+    district = Column(String, nullable=True)
+    city = Column(String, nullable=True, default="Tashkent")
     
     # Working hours and status
-    working_hours = Column(String, nullable=True)  # e.g., "9:00-21:00"
-    is_active = Column(Boolean, default=True)  # Is pharmacy currently operational
-    is_24_hours = Column(Boolean, default=False)  # Is it a 24-hour pharmacy
+    working_hours = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_24_hours = Column(Boolean, default=False)
     
+    # Timestamps - BU QATORLARNI QAYTARING
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     def __repr__(self):
         return f"<Pharmacy(name={self.name}, address={self.address}, lat={self.latitude}, lon={self.longitude})>"
-
 
 class PharmacyDrug(BaseModel):
     __tablename__ = "pharmacy_drugs"

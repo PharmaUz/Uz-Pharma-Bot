@@ -491,7 +491,9 @@ async def handle_location(message: types.Message, state: FSMContext):
             required_drug_ids = {item.drug_id for item in cart_items}
 
             # Fetch all pharmacies from database
-            pharmacies_result = await session.execute(select(Pharmacy))
+            pharmacies_result = await session.execute(
+                select(Pharmacy).where(Pharmacy.is_active == True)
+            )
             all_pharmacies = pharmacies_result.scalars().all()
 
             if not all_pharmacies:
