@@ -21,7 +21,6 @@ class BaseModel(Base):
         # Call SQLAlchemy Base __init__
         super().__init__(*args, **kwargs)
 
-
 class Application(Base):
     """ User applications for medicine delivery """
     __tablename__ = "applications"
@@ -74,7 +73,7 @@ class Pharmacy(Base):
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
     phone = Column(String, nullable=True)
-    
+
     # Geographic coordinates for location-based search
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
@@ -144,6 +143,7 @@ class Order(BaseModel):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(BigInteger, nullable=False)  # Telegram user ID
+
     pharmacy_id = Column(Integer, ForeignKey("pharmacies.id", ondelete="SET NULL"), nullable=True)  # Selected pharmacy
     
     full_name = Column(String, nullable=False)  # Customer name
@@ -168,7 +168,7 @@ class Order(BaseModel):
     def __repr__(self):
         return f"<Order(id={self.id}, user_id={self.user_id}, status={self.status}, pickup_code={self.pickup_code})>"
 
-
+      
 class OrderItem(BaseModel):
     """Order items"""
     __tablename__ = "order_items"

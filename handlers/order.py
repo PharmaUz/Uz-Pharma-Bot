@@ -11,6 +11,7 @@ from sqlalchemy import select, delete
 
 from database.db import async_session
 from database.models import Drug, Cart, Pharmacy, PharmacyDrug, Order, OrderItem
+
 from keyboards.main_menu import get_main_menu
 
 router = Router()
@@ -79,10 +80,12 @@ async def add_to_cart(callback: CallbackQuery):
             cart_item = existing_cart_item.scalar_one_or_none()
 
             if cart_item:
+                # If exists, increase quantity
                 cart_item.quantity += 1
                 await session.commit()
                 await callback.answer("✅ Dori miqdori oshirildi!", show_alert=True)
             else:
+                # If not exists, create new cart item
                 new_cart_item = Cart(
                     user_id=user_id,
                     drug_id=drug_id,
@@ -279,6 +282,7 @@ async def decrease_quantity(callback: types.CallbackQuery):
     except Exception as e:
         logger.error(f"Error decreasing quantity: {e}", exc_info=True)
         await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
+
 
 
 @router.callback_query(lambda c: c.data.startswith("remove_from_cart:"))
@@ -492,7 +496,7 @@ async def handle_location(message: types.Message, state: FSMContext):
 
             required_drug_ids = {item.drug_id for item in cart_items}
 
-            # Fetch all pharmacies from database
+            # Fetch all active pharmacies
             pharmacies_result = await session.execute(
                 select(Pharmacy).where(Pharmacy.is_active == True)
             )
@@ -510,28 +514,28 @@ async def handle_location(message: types.Message, state: FSMContext):
 
             # Check each pharmacy for drug availability
             for pharmacy in all_pharmacies:
-                # Get pharmacy's drugs from PharmacyDrug table
                 pharmacy_drugs_result = await session.execute(
                     select(PharmacyDrug).where(
                         PharmacyDrug.pharmacy_id == pharmacy.id,
                         PharmacyDrug.drug_id.in_(required_drug_ids),
-                        PharmacyDrug.residual > 0  # Check stock availability
+                        PharmacyDrug.residual > 0
                     )
                 )
                 available_drugs = pharmacy_drugs_result.scalars().all()
                 available_drug_ids = {pd.drug_id for pd in available_drugs}
 
-                # Check if pharmacy has all required drugs
-                has_all_drugs = required_drug_ids.issubset(available_drug_ids)
+                if required_drug_ids.issubset(available_drug_ids):
+                    # Foydalaniladigan koordinatalar modeldan olinadi
+                    if pharmacy.latitude and pharmacy.longitude:
+                        pharmacy_lat = float(pharmacy.latitude)
+                        pharmacy_lon = float(pharmacy.longitude)
+                    else:
+                        # fallback agar bazada yo‘q bo‘lsa
+                        pharmacy_lat = 41.2995  
+                        pharmacy_lon = 69.2401  
 
-                if has_all_drugs:
-                    # Calculate distance (using dummy coordinates if not set in DB)
-                    # Replace with actual pharmacy coordinates from your database
-                    pharmacy_lat = 41.2995  # Default: Tashkent center
-                    pharmacy_lon = 69.2401
-                    
                     distance = calculate_distance(user_lat, user_lon, pharmacy_lat, pharmacy_lon)
-                    
+
                     eligible_pharmacies.append({
                         "id": pharmacy.id,
                         "name": pharmacy.name,
