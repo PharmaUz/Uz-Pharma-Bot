@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class OrderState(StatesGroup):
-    """FSM states for order placement process."""
+    """
+    FSM states for order placement process.
+    """
     choosing_delivery_type = State()
     waiting_for_location = State()
     choosing_pharmacy = State()
