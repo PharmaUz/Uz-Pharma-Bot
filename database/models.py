@@ -8,6 +8,7 @@ from sqlalchemy import (
     Text, 
     Date, 
     ForeignKey, 
+    Float,  # Added for coordinates
     UniqueConstraint,
     func
 )
@@ -17,11 +18,8 @@ from .db import Base
 class BaseModel(Base):
     __abstract__ = True
     def __init__(self, *args, **kwargs):
-            # SQLAlchemy Base __init__ ni chaqiramiz
-            super().__init__(*args, **kwargs)
-
-
-
+        # Call SQLAlchemy Base __init__
+        super().__init__(*args, **kwargs)
 
 class Application(Base):
     """ User applications for medicine delivery """
@@ -60,7 +58,7 @@ class Drug(Base):
     prescription_required = Column(Boolean, default=False)  # whether prescription is required
     category = Column(String, nullable=True)  # category: antibiotic, analgesic, etc.
     
-    # New added fields
+    # Image fields
     image_url = Column(String, nullable=True)  # drug image URL
     thumbnail_url = Column(String, nullable=True)  # thumbnail image URL
 
@@ -76,9 +74,25 @@ class Pharmacy(Base):
     address = Column(String, nullable=True)
     phone = Column(String, nullable=True)
 
-    def __repr__(self):
-        return f"<Pharmacy(name={self.name}, address={self.address})>"
+    # Geographic coordinates for location-based search
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    
+    # Additional location information
+    district = Column(String, nullable=True)
+    city = Column(String, nullable=True, default="Tashkent")
+    
+    # Working hours and status
+    working_hours = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_24_hours = Column(Boolean, default=False)
+    
+    # Timestamps - BU QATORLARNI QAYTARING
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    def __repr__(self):
+        return f"<Pharmacy(name={self.name}, address={self.address}, lat={self.latitude}, lon={self.longitude})>"
 
 class PharmacyDrug(BaseModel):
     __tablename__ = "pharmacy_drugs"
@@ -87,8 +101,8 @@ class PharmacyDrug(BaseModel):
     pharmacy_id = Column(Integer, ForeignKey("pharmacies.id", ondelete="CASCADE"))
     drug_id = Column(Integer, ForeignKey("drugs.id", ondelete="CASCADE"))
 
-    price = Column(Integer, nullable=True, default=0)
-    residual = Column(Integer, nullable=True, default=0)
+    price = Column(Integer, nullable=True, default=0)  # Price at this specific pharmacy
+    residual = Column(Integer, nullable=True, default=0)  # Stock quantity available
 
     pharmacy = relationship("Pharmacy", backref="pharmacy_drugs")
     drug = relationship("Drug", backref="pharmacy_drugs")
@@ -129,18 +143,32 @@ class Order(BaseModel):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(BigInteger, nullable=False)  # Telegram user ID
+
+    pharmacy_id = Column(Integer, ForeignKey("pharmacies.id", ondelete="SET NULL"), nullable=True)  # Selected pharmacy
+    
     full_name = Column(String, nullable=False)  # Customer name
-    phone = Column(String, nullable=False)  # Customer phone
-    address = Column(String, nullable=False)  # Delivery address
+    phone = Column(String, nullable=False)  # Customer phone / pickup code
+    address = Column(String, nullable=False)  # Delivery address or pharmacy address
+    
     total_amount = Column(Integer, default=0)  # Total order amount
-    status = Column(String, default="pending")  # pending, confirmed, delivered, cancelled
+    delivery_type = Column(String, default="pickup")  # "pickup" or "delivery"
+    pickup_code = Column(String, nullable=True)  # Unique pickup code for pharmacy pickup
+    
+    status = Column(String, default="pending")  # pending, confirmed, ready, completed, cancelled
+    payment_status = Column(String, default="unpaid")  # unpaid, paid, refunded
+    
+    # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)  # When order was completed
+
+    # Relationship
+    pharmacy = relationship("Pharmacy", backref="orders")
 
     def __repr__(self):
-        return f"<Order(id={self.id}, user_id={self.user_id}, status={self.status})>"
+        return f"<Order(id={self.id}, user_id={self.user_id}, status={self.status}, pickup_code={self.pickup_code})>"
 
-
+      
 class OrderItem(BaseModel):
     """Order items"""
     __tablename__ = "order_items"
