@@ -4,7 +4,6 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 def get_main_menu():
     """Return the main menu inline keyboard"""
     menu_buttons = [
-        [InlineKeyboardButton(text="💊 Dori qidirish", callback_data="search_drug")],
         [InlineKeyboardButton(text="🚚 Dori xarid qilish", callback_data="buy_drug")],
         [InlineKeyboardButton(text="🤖 AI konsultatsiya", callback_data="ai_consult")],
         [InlineKeyboardButton(text="🤝 Hamkorlik", callback_data="cooperation")],

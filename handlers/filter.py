@@ -13,34 +13,6 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
-@router.callback_query(lambda c: c.data == "search_drug")
-async def start_drug_search(callback: types.CallbackQuery, state: FSMContext):
-    """
-    Start drug search process.
-
-    Args:
-        callback (types.CallbackQuery): User callback query object.
-        state (FSMContext): FSM context for state management.
-    """
-    keyboard = types.InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                types.InlineKeyboardButton(
-                    text="🔍 Dorilarni qidirish",
-                    switch_inline_query_current_chat=""
-                )
-            ]
-        ]
-    )
-
-    await callback.message.answer(
-        "🏥 Dorilar qidiruv bo'limi\n"
-        "Pastdagi tugmani bosing va dori nomini yozing 👇",
-        reply_markup=keyboard
-    )
-    await callback.answer()
-
-
 @router.inline_query()
 async def inline_drug_search(inline_query: types.InlineQuery):
     """
