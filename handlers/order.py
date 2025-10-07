@@ -427,7 +427,7 @@ async def handle_delivery_type(callback: types.CallbackQuery, state: FSMContext)
             "• Tugmani bosing: <i>📍 Mening joylashuvim</i> (eng oson va tez usul).\n"
             "• Yoki Telegram orqali <i>Location</i> turidagi xabar yuboring.\n\n"
             "<b>Qanday ishlaydi:</b>\n"
-            "1) Siz joylashuv yuborasiz → 2) Biz savatingizni tekshiramiz \n"
+            "1) Siz joylashuv yuborasiz, \n2) Biz savatingizni tekshiramiz, \n"
             "3) Sizga eng yaqin va kerakli dorilar mavjud dorixonalarni ko'rsatamiz.\n\n"
             "<i>Maxfiylik:</i> Joylashuvingiz faqat dorixona tanlash jarayonida ishlatiladi va saqlanmaydi.",
             parse_mode="HTML",
@@ -542,6 +542,8 @@ async def handle_location(message: types.Message, state: FSMContext):
                         "address": pharmacy.address or "Manzil ko'rsatilmagan",
                         "phone": pharmacy.phone or "",
                         "distance": distance,
+                        "latitude": pharmacy.latitude,
+                        "longitude": pharmacy.longitude,
                         "status": "Dorilar mavjud ✅"
                     })
 
@@ -574,7 +576,7 @@ async def handle_location(message: types.Message, state: FSMContext):
             for i, p in enumerate(top_pharmacies, 1):
                 pharmacy_text += (
                     f"{i}. <b>{p['name']}</b>\n"
-                    f"   📍 {p['address']}\n"
+                    f"   📍 <a href='https://www.google.com/maps/search/?api=1&query={p['latitude']},{p['longitude']}'>{p['address']}</a>\n"
                     f"   📏 <i>{p['distance']:.2f} km</i> – {p['status']}\n"
                 )
                 if p['phone']:
