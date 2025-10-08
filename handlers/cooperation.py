@@ -82,12 +82,6 @@ async def process_contact(message: types.Message, state: FSMContext):
         return
 
     phone = message.contact.phone_number
-    phone_pattern = r"^\+998\d{9}$"
-    if not re.match(phone_pattern, phone):
-        await message.answer(
-            "❌ Telefon raqami +998 bilan boshlanishi va 9 ta raqamdan iborat bo'lishi kerak."
-        )
-        return
 
     await state.update_data(contact=phone)
     await message.answer("📍 Manzilni kiriting:", reply_markup=types.ReplyKeyboardRemove())
