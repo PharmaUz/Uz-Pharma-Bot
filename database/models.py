@@ -48,6 +48,7 @@ class Drug(Base):
     __tablename__ = "drugs"
 
     id = Column(Integer, primary_key=True, index=True)
+    drug_id = Column(Integer, unique=True, nullable=True)  # drug id from API
     name = Column(String, nullable=False)  # drug name
     description = Column(Text, nullable=True)  # short description
     manufacturer = Column(String, nullable=True)  # manufacturer name
