@@ -1,8 +1,10 @@
+import re
 import os
 from aiogram import Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import StateFilter
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from keyboards.main_menu import get_confirm_keyboard, get_main_menu
 from database.db import async_session
 from database.models import Application
@@ -54,17 +56,35 @@ async def process_name(message: types.Message, state: FSMContext):
     Step 2: Save organization name and ask for contact info.
     """
     await state.update_data(name=message.text)
-    await message.answer("📞 Aloqa maʼlumotlarini kiriting (telefon/email):")
+    contact_keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📞 Kontaktni yuborish", request_contact=True)]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    await message.answer(
+        "📞 Telefon raqamingizni kontakt sifatida yuboring:",
+        reply_markup=contact_keyboard
+    )
     await state.set_state(CooperationForm.contact)
-
 
 @router.message(StateFilter(CooperationForm.contact))
 async def process_contact(message: types.Message, state: FSMContext):
     """
     Step 3: Save contact info and ask for address.
+    Faqat kontakt orqali yuborilgan telefon raqami qabul qilinadi.
     """
-    await state.update_data(contact=message.text)
-    await message.answer("📍 Manzilni kiriting:")
+    if not message.contact or not message.contact.phone_number:
+        await message.answer(
+            "❌ Iltimos, 'Kontaktni yuborish' tugmasidan foydalaning."
+        )
+        return
+
+    phone = message.contact.phone_number
+
+    await state.update_data(contact=phone)
+    await message.answer("📍 Manzilni kiriting:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(CooperationForm.address)
 
 
