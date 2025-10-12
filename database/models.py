@@ -8,7 +8,6 @@ from sqlalchemy import (
     Text, 
     Date, 
     ForeignKey, 
-    Float,  # Added for coordinates
     UniqueConstraint,
     func
 )
@@ -18,17 +17,24 @@ from .db import Base
 class BaseModel(Base):
     __abstract__ = True
     def __init__(self, *args, **kwargs):
-<<<<<<< HEAD
             super().__init__(*args, **kwargs)
 
 
 
-=======
-        # Call SQLAlchemy Base __init__
-        super().__init__(*args, **kwargs)
->>>>>>> origin/main
 
 class Application(Base):
+    """
+    Represents a user application for medicine delivery.
+
+    Attributes:
+        id (int): Primary key, unique identifier for the application.
+        full_name (str): Name of the organization or person applying.
+        phone (str): Contact information, such as phone number or email.
+        pharmacy_name (str): Name of the pharmacy or address associated with the application.
+        approved (bool or None): Approval status of the application. 
+            True if approved, False if rejected, None if pending.
+        created_at (datetime): Timestamp indicating when the application was created.
+    """
     """ User applications for medicine delivery """
     __tablename__ = "applications"
 
@@ -41,6 +47,20 @@ class Application(Base):
 
 
 class Comment(Base):
+    """
+    Represents a comment made by a user.
+
+    Attributes:
+        id (int): Primary key, unique identifier for the comment.
+        user_id (int): Telegram user ID of the commenter.
+        username (str, optional): Username of the commenter, if available.
+        text (str): The content of the comment.
+        approved (bool or None): Approval status of the comment.
+            - True: Approved
+            - False: Rejected
+            - None: Pending review
+        created_at (datetime): Timestamp when the comment was created (timezone-aware).
+    """
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -52,10 +72,27 @@ class Comment(Base):
 
 
 class Drug(Base):
+    """
+    Represents a drug entity in the pharmaceutical database.
+    Attributes:
+        id (int): Primary key, unique identifier for the drug.
+        name (str): Name of the drug. (Required)
+        description (str, optional): Short description of the drug.
+        manufacturer (str, optional): Name of the manufacturer.
+        dosage_form (str, optional): Dosage form (e.g., tablet, syrup, injection).
+        strength (str, optional): Dosage strength (e.g., 500mg).
+        price (int, optional): Price in local currency. Defaults to 0.
+        expiration_date (date, optional): Expiration date of the drug.
+        prescription_required (bool): Indicates if a prescription is required. Defaults to False.
+        category (str, optional): Drug category (e.g., antibiotic, analgesic).
+        image_url (str, optional): URL to the drug's image.
+        thumbnail_url (str, optional): URL to the drug's thumbnail image.
+    Methods:
+        __repr__(): Returns a string representation of the Drug instance.
+    """
     __tablename__ = "drugs"
 
     id = Column(Integer, primary_key=True, index=True)
-    drug_id = Column(Integer, unique=True, nullable=True)  # drug id from API
     name = Column(String, nullable=False)  # drug name
     description = Column(Text, nullable=True)  # short description
     manufacturer = Column(String, nullable=True)  # manufacturer name
@@ -66,7 +103,7 @@ class Drug(Base):
     prescription_required = Column(Boolean, default=False)  # whether prescription is required
     category = Column(String, nullable=True)  # category: antibiotic, analgesic, etc.
     
-    # Image fields
+    # New added fields
     image_url = Column(String, nullable=True)  # drug image URL
     thumbnail_url = Column(String, nullable=True)  # thumbnail image URL
 
@@ -75,6 +112,18 @@ class Drug(Base):
 
 
 class Pharmacy(Base):
+    """
+    Represents a pharmacy entity in the database.
+
+    Attributes:
+        id (int): Primary key, unique identifier for the pharmacy.
+        name (str): Name of the pharmacy. Cannot be null.
+        address (str, optional): Address of the pharmacy.
+        phone (str, optional): Contact phone number of the pharmacy.
+
+    Methods:
+        __repr__(): Returns a string representation of the Pharmacy instance.
+    """
     __tablename__ = "pharmacies"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -82,35 +131,37 @@ class Pharmacy(Base):
     address = Column(String, nullable=True)
     phone = Column(String, nullable=True)
 
-    # Geographic coordinates for location-based search
-    latitude = Column(Float, nullable=True)
-    longitude = Column(Float, nullable=True)
-    
-    # Additional location information
-    district = Column(String, nullable=True)
-    city = Column(String, nullable=True, default="Tashkent")
-    
-    # Working hours and status
-    working_hours = Column(String, nullable=True)
-    is_active = Column(Boolean, default=True)
-    is_24_hours = Column(Boolean, default=False)
-    
-    # Timestamps - BU QATORLARNI QAYTARING
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
     def __repr__(self):
-        return f"<Pharmacy(name={self.name}, address={self.address}, lat={self.latitude}, lon={self.longitude})>"
+        return f"<Pharmacy(name={self.name}, address={self.address})>"
+
 
 class PharmacyDrug(BaseModel):
+    """
+    Represents the association between a pharmacy and a drug, including inventory and pricing information.
+
+    Attributes:
+        id (int): Primary key for the PharmacyDrug record.
+        pharmacy_id (int): Foreign key referencing the associated pharmacy.
+        drug_id (int): Foreign key referencing the associated drug.
+        price (int, optional): Price of the drug in the pharmacy. Defaults to 0.
+        residual (int, optional): Remaining quantity of the drug in the pharmacy. Defaults to 0.
+        pharmacy (Pharmacy): Relationship to the Pharmacy model.
+        drug (Drug): Relationship to the Drug model.
+
+    Constraints:
+        UniqueConstraint: Ensures that each (pharmacy_id, drug_id) pair is unique.
+
+    Methods:
+        __repr__(): Returns a string representation of the PharmacyDrug instance.
+    """
     __tablename__ = "pharmacy_drugs"
 
     id = Column(Integer, primary_key=True, index=True)
     pharmacy_id = Column(Integer, ForeignKey("pharmacies.id", ondelete="CASCADE"))
     drug_id = Column(Integer, ForeignKey("drugs.id", ondelete="CASCADE"))
 
-    price = Column(Integer, nullable=True, default=0)  # Price at this specific pharmacy
-    residual = Column(Integer, nullable=True, default=0)  # Stock quantity available
+    price = Column(Integer, nullable=True, default=0)
+    residual = Column(Integer, nullable=True, default=0)
 
     pharmacy = relationship("Pharmacy", backref="pharmacy_drugs")
     drug = relationship("Drug", backref="pharmacy_drugs")
@@ -124,6 +175,24 @@ class PharmacyDrug(BaseModel):
 
 
 class Cart(BaseModel):
+    """
+    Represents a user's shopping cart entry for medicines.
+
+    Attributes:
+        id (int): Primary key for the cart entry.
+        user_id (int): Telegram user ID associated with the cart.
+        drug_id (int): Foreign key referencing the drug in the cart.
+        quantity (int): Number of units of the drug in the cart (default is 1).
+        created_at (datetime): Timestamp when the cart entry was created.
+        updated_at (datetime): Timestamp when the cart entry was last updated.
+        drug (Drug): Relationship to the Drug model for the associated drug.
+
+    Constraints:
+        UniqueConstraint on (user_id, drug_id): Ensures a user cannot have duplicate entries for the same drug in their cart.
+
+    Methods:
+        __repr__(): Returns a string representation of the cart entry.
+    """
     """User's shopping cart for medicines"""
     __tablename__ = "carts"
 
@@ -146,38 +215,52 @@ class Cart(BaseModel):
 
 
 class Order(BaseModel):
+    """
+    Represents a user order in the system.
+
+    Attributes:
+        id (int): Primary key for the order.
+        user_id (int): Telegram user ID of the customer placing the order.
+        full_name (str): Full name of the customer.
+        phone (str): Phone number of the customer.
+        address (str): Delivery address for the order.
+        total_amount (int): Total amount for the order. Defaults to 0.
+        status (str): Status of the order. Possible values: 'pending', 'confirmed', 'delivered', 'cancelled'. Defaults to 'pending'.
+        created_at (datetime): Timestamp when the order was created.
+        updated_at (datetime): Timestamp when the order was last updated.
+    """
     """User orders"""
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(BigInteger, nullable=False)  # Telegram user ID
-
-    pharmacy_id = Column(Integer, ForeignKey("pharmacies.id", ondelete="SET NULL"), nullable=True)  # Selected pharmacy
-    
     full_name = Column(String, nullable=False)  # Customer name
-    phone = Column(String, nullable=False)  # Customer phone / pickup code
-    address = Column(String, nullable=False)  # Delivery address or pharmacy address
-    
+    phone = Column(String, nullable=False)  # Customer phone
+    address = Column(String, nullable=False)  # Delivery address
     total_amount = Column(Integer, default=0)  # Total order amount
-    delivery_type = Column(String, default="pickup")  # "pickup" or "delivery"
-    pickup_code = Column(String, nullable=True)  # Unique pickup code for pharmacy pickup
-    
-    status = Column(String, default="pending")  # pending, confirmed, ready, completed, cancelled
-    payment_status = Column(String, default="unpaid")  # unpaid, paid, refunded
-    
-    # Timestamps
+    status = Column(String, default="pending")  # pending, confirmed, delivered, cancelled
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    completed_at = Column(DateTime(timezone=True), nullable=True)  # When order was completed
-
-    # Relationship
-    pharmacy = relationship("Pharmacy", backref="orders")
 
     def __repr__(self):
-        return f"<Order(id={self.id}, user_id={self.user_id}, status={self.status}, pickup_code={self.pickup_code})>"
+        return f"<Order(id={self.id}, user_id={self.user_id}, status={self.status})>"
 
-      
+
 class OrderItem(BaseModel):
+    """
+    Represents an item within an order, linking a specific drug to an order with a specified quantity and price.
+
+    Attributes:
+        id (int): Primary key for the order item.
+        order_id (int): Foreign key referencing the associated order.
+        drug_id (int): Foreign key referencing the associated drug.
+        quantity (int): The number of units of the drug ordered.
+        price (int): The price of the drug at the time of the order.
+
+    Relationships:
+        order (Order): The order to which this item belongs.
+        drug (Drug): The drug associated with this order item.
+    """
     """Order items"""
     __tablename__ = "order_items"
 
@@ -196,6 +279,18 @@ class OrderItem(BaseModel):
     
 
 class User(BaseModel):
+    """
+    Represents a user in the system.
+    Attributes:
+        id (int): Primary key, unique identifier for the user.
+        telegram_id (int): Unique Telegram user ID.
+        username (str, optional): Telegram username of the user.
+        full_name (str, optional): Full name of the user.
+        phone_number (str, optional): Phone number of the user.
+    Methods:
+        __repr__(): Returns a string representation of the User instance.
+    """
+    
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)

@@ -22,7 +22,18 @@ async_session = async_sessionmaker(
 
 # 🔹 Session generator
 async def get_session() -> AsyncSession:  
-    """Har safar yangi session qaytaradi"""
+    """
+    Asynchronously provides a new SQLAlchemy AsyncSession instance.
+
+    Yields:
+        AsyncSession: A new asynchronous database session.
+
+    Raises:
+        Exception: Propagates any exception that occurs during session usage after rolling back the transaction.
+
+    Ensures:
+        The session is properly closed after use, and any transaction is rolled back if an exception occurs.
+    """
     async with async_session() as session:
         try:
             yield session
@@ -34,12 +45,27 @@ async def get_session() -> AsyncSession:
 
 
 async def init_db():
-    """Bazadagi barcha jadvalni yaratish"""
+    """
+    Initializes the database by creating all tables defined in the application's models.
+
+    This asynchronous function establishes a connection to the database engine and creates all tables
+    based on the metadata from the imported models. It should be called at application startup to ensure
+    that the database schema is up to date.
+
+    Raises:
+        Any exceptions raised by the database engine during table creation.
+    """
     async with engine.begin() as conn:
         from . import models
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def close_db():
-    """Bazaga ulanishni yopish"""
+    """
+    Asynchronously closes the database connection by disposing of the engine.
+
+    This function should be called when the application is shutting down or when
+    the database connection is no longer needed to ensure that all resources are
+    properly released.
+    """
     await engine.dispose()
