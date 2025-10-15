@@ -1,9 +1,11 @@
+import os
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import LabeledPrice, PreCheckoutQuery, ContentType
 
-BOT_TOKEN = "8175700443:AAH94wANDNy6rPvKRYvRvEvXGASDQqgkBKc"
-CLICK_PROVIDER_TOKEN = "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E065"  # @BotFather'dan olingan
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+CLICK_PROVIDER_TOKEN = os.getenv("CLICK_PROVIDER_TOKEN")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
