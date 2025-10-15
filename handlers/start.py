@@ -1,12 +1,14 @@
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from keyboards.main_menu import get_main_menu
+from keyboards import get_main_menu, get_pharmacy_menu
+from sqlalchemy import select
+from database.models import Pharmacy
+from database.db import async_session
 
-from handlers.cooperation import ADMIN_ID  # Import ADMIN_ID from handlers.cooperation
+from handlers.cooperation import ADMIN_ID
 
 router = Router()
-
 
 @router.message(Command("start"))
 async def start_handler(message: types.Message):
@@ -16,25 +18,39 @@ async def start_handler(message: types.Message):
     Greets the user by username (or full name if username is not set)
     and shows the main menu.
     """
-    username = message.from_user.username or message.from_user.full_name
-    await message.answer(f"Salom, {username} 👋", reply_markup=get_main_menu())
+    async with async_session() as session:
+        user_id = message.from_user.id
+        username = message.from_user.username or message.from_user.full_name
 
+        result = await session.execute(
+            select(Pharmacy).where(Pharmacy.tg_id == user_id)
+        )
+        pharmacy = result.scalar_one_or_none()
+
+        if pharmacy:
+            await message.answer(
+                f"Salom, {pharmacy.name} dorixonasi! 🏥\n\n"
+                f"Sizning dorixonangiz: {pharmacy.name}\n"
+                f"Manzil: {pharmacy.address or 'Korsatilmagan'}\n\n"
+                f"Quyidagi tugmalar orqali buyurtmalarni boshqaring:",
+                reply_markup=get_pharmacy_menu()
+            )
+        else:
+            await message.answer(f"Salom, {username} 👋", reply_markup=get_main_menu())
 
 
 @router.message(F.text.startswith("/"))
 async def comment(message: types.Message):
     """
-    Handle unknown commands.
-
-    Informs the user that the command is not recognized
-    and suggests using the main menu.
+    Handle unknown or unrecognized commands entered by users.
+    Sends the message to the admin for review.
     """
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.full_name
-    order_id = "12345" # we'll write it down by hand for now
+    order_id = "12345"  # temporary placeholder
     comment_text = message.text
 
-
+    # Buttons for admin to confirm or reject the message
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -44,9 +60,13 @@ async def comment(message: types.Message):
         ]
     )
 
+    # Send message to admin
     await message.bot.send_message(
         ADMIN_ID,
         f"🆔 Order ID: {order_id}\n👤 User: @{username}\n💬 {comment_text}",
-        reply_markup=keyboard
+        reply_markup=keyboard,
     )
-    await message.answer("❓ Noma'lum buyruq. Iltimos, asosiy menyudan foydalaning.", reply_markup=get_main_menu())
+    await message.answer(
+        "❓ Noma'lum buyruq. Iltimos, asosiy menyudan foydalaning.", 
+        reply_markup=get_main_menu()
+    )

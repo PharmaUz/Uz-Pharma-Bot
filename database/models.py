@@ -15,11 +15,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from .db import Base
 
+
 class BaseModel(Base):
     __abstract__ = True
     def __init__(self, *args, **kwargs):
-        # Call SQLAlchemy Base __init__
         super().__init__(*args, **kwargs)
+
 
 class Application(Base):
     """ User applications for medicine delivery """
@@ -73,6 +74,7 @@ class Pharmacy(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
+    tg_id = Column(BigInteger, unique=True, nullable=True)  # Telegram ID of the pharmacy bot/admin
     phone = Column(String, nullable=True)
 
     # Geographic coordinates for location-based search
