@@ -1,12 +1,14 @@
-import logging
 import math
 import random
+import logging
 
 from loader import bot
 from aiogram import Router, types
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery
+from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramAPIError
+from aiogram.fsm.state import State, StatesGroup
+
 from sqlalchemy import select, delete
 
 from database.db import async_session
@@ -671,7 +673,7 @@ async def finalize_order_confirmation(callback: types.CallbackQuery, state: FSMC
             "<b>✅ Buyurtmani tasdiqlash</b>\n\n"
             "<b>🏪 Tanlangan dorixona (Pickup):</b>\n"
             f" 📍 {selected_pharmacy['name']}\n"
-            f" 🏠 Manzil: {selected_pharmacy['address']}\n"
+            f" 🏠 Manzil: <a href='https://www.google.com/maps/search/?api=1&query={selected_pharmacy['latitude']},{selected_pharmacy['longitude']}'>{selected_pharmacy['address']}</a>\n"
         )
         
         if selected_pharmacy.get('phone'):
@@ -709,6 +711,9 @@ async def finalize_order_confirmation(callback: types.CallbackQuery, state: FSMC
             final_pharmacy_id=pharmacy_id,
             final_pharmacy_name=selected_pharmacy['name'],
             final_pharmacy_address=selected_pharmacy['address'],
+            final_pharmacy_phone=selected_pharmacy.get('phone', ''),
+            final_pharmacy_latitude=selected_pharmacy['latitude'],
+            final_pharmacy_longitude=selected_pharmacy['longitude'],
             order_total=total_amount,
             order_items=cart_items_details,
             pickup_code=pickup_code
@@ -790,6 +795,9 @@ async def finalize_order(callback: types.CallbackQuery, state: FSMContext):
     pharmacy_id = data.get("final_pharmacy_id")
     pharmacy_name = data.get("final_pharmacy_name", "")
     pharmacy_address = data.get("final_pharmacy_address", "")
+    pharmacy_phone = data.get("final_pharmacy_phone", "")
+    pharmacy_latitude = data.get("final_pharmacy_latitude", 0)
+    pharmacy_longitude = data.get("final_pharmacy_longitude", 0)
     total_amount = data.get("order_total", 0)
     order_items = data.get("order_items", [])
     pickup_code = data.get("pickup_code")
@@ -807,6 +815,7 @@ async def finalize_order(callback: types.CallbackQuery, state: FSMContext):
                 user_id=user_id,
                 full_name=callback.from_user.full_name or "Unknown",
                 phone=pickup_code,  # Using pickup code as temporary identifier
+                pharmacy_id=pharmacy_id,
                 address=f"{pharmacy_name}, {pharmacy_address}",
                 total_amount=total_amount,
                 status="pending"
@@ -855,7 +864,8 @@ async def finalize_order(callback: types.CallbackQuery, state: FSMContext):
                 f"📋 <b>Buyurtma raqami:</b> #{new_order.id}\n"
                 f"🔐 <b>Pickup kod:</b> <code>{pickup_code}</code>\n\n"
                 f"🏪 <b>Dorixona:</b> {pharmacy_name}\n"
-                f"📍 <b>Manzil:</b> {pharmacy_address}\n\n"
+                f"📞 <b>Telefon:</b> {pharmacy_phone}\n"
+                f"📍 <b>Manzil:</b> <a href='https://www.google.com/maps/search/?api=1&query={pharmacy_latitude},{pharmacy_longitude}'>{pharmacy_address}</a>\n\n"
                 f"💵 <b>To'lov summasi:</b> {total_amount:,} so'm\n\n"
                 "⏰ <b>Olib ketish vaqti:</b> Hozirdan boshlab 40 daqiqa ichida.\n\n"
                 "<b>⚠️ Muhim eslatmalar:</b>\n"
@@ -893,6 +903,35 @@ async def finalize_order(callback: types.CallbackQuery, state: FSMContext):
                 f"Order #{new_order.id} created successfully for user {user_id} "
                 f"at pharmacy {pharmacy_id}"
             )
+            # --- SEND MESSAGE TO PHARMACY ADMIN ---
+            pharmacy = await session.get(Pharmacy, pharmacy_id)
+            admin_tg_id = pharmacy.tg_id if pharmacy else None
+
+            if admin_tg_id:
+                order_items_text = ""
+                for item in order_items:
+                    order_items_text += (
+                        f"- {item['drug_name']}: {item['quantity']} dona, {item['price']:,} so'm\n"
+                    )
+                admin_message = (
+                    f"🆕 <b>Yangi buyurtma!</b>\n"
+                    f"📋 Buyurtma raqami: #{new_order.id}\n"
+                    f"👤 Mijoz: {callback.from_user.full_name or 'Unknown'}\n"
+                    f"🔐 Pickup kod: <code>{pickup_code}</code>\n"
+                    f"💵 Jami: {total_amount:,} so'm\n"
+                    f"🛍 Buyurtma:\n{order_items_text}\n"
+                    f"🏪 Dorixona: {pharmacy_name}\n"
+                    f"📍 Manzil: {pharmacy_address}\n"
+                    f"⏰ Olib ketish: 40 daqiqa ichida\n"
+                )
+                try:
+                    await bot.send_message(
+                        admin_tg_id,
+                        admin_message,
+                        parse_mode="HTML"
+                    )
+                except TelegramAPIError as err:
+                    logger.error(f"Failed to send order notification to admin: {err}")
 
     except Exception as e:
         logger.error(f"Error finalizing order: {e}", exc_info=True)
