@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from loader import bot, dp
 from handlers import start, cooperation, feedback, filter, order
+from users import pharmacy
 from database.db import engine, Base
 
 # Load .env
@@ -17,6 +18,7 @@ dp.include_router(cooperation.router)
 dp.include_router(feedback.router)
 dp.include_router(filter.router)
 dp.include_router(order.router)
+dp.include_router(pharmacy.router)
 
 
 async def create_tables():
