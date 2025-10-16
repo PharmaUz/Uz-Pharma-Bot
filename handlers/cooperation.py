@@ -10,6 +10,7 @@ from database.db import async_session
 from database.models import Application
 from dotenv import load_dotenv
 
+
 # === Load environment variables ===
 load_dotenv()
 ADMIN_ID = os.getenv("ADMIN_ID")
