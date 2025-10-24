@@ -47,7 +47,7 @@ async def safe_edit_message_text(
     except Exception as e:
         print(f"Error editing message: {e}")
 
-@router.callback_query(lambda c: c.data and c.data.startswith("admin:users") and c.data != "admin:users:list")
+@router.callback_query(lambda c: c.data and c.data.startswith("admin:users") and not c.data.startswith("admin:users:list"))
 async def handle_users_menu(callback: CallbackQuery):
     """
     Handle user management menu interactions.
@@ -71,14 +71,42 @@ async def list_users(callback: CallbackQuery):
     page = int(parts[3]) if len(parts) > 3 else 1
     
     async with async_session() as session:
-        # Get total count
         # Get total count efficiently
-        total_users = await session.scalar(select(func.count(User.id)))
+        total_users = int(await session.scalar(select(func.count(User.id))) or 0)
 
-        # Still fetch users (kept for existing pagination/slicing logic).
-        # Ordering by id makes pagination deterministic.
-        result = await session.execute(select(User).order_by(User.id))
-        all_users = result.scalars().all()
+        # Normalize page based on total_users so we fetch the correct slice
+        total_pages = math.ceil(total_users / USERS_PER_PAGE) if total_users else 1
+        page = max(1, min(page, total_pages))
+
+        # Calculate offset for the current page and fetch only that page
+        offset = (page - 1) * USERS_PER_PAGE
+        result = await session.execute(
+            select(User).order_by(User.id).limit(USERS_PER_PAGE).offset(offset)
+        )
+        page_users = result.scalars().all()
+
+        # Provide an object that supports slicing as the original code expects
+        class _PagedWindow:
+            def __init__(self, items, offset, total):
+                self._items = items
+                self._offset = offset
+                self._total = total
+
+            def __getitem__(self, key):
+                if isinstance(key, slice):
+                    start = 0 if key.start is None else key.start
+                    stop = self._total if key.stop is None else key.stop
+                    rel_start = max(0, start - self._offset)
+                    rel_stop = max(0, stop - self._offset)
+                    return self._items[rel_start:rel_stop]
+                else:
+                    rel = key - self._offset
+                    if 0 <= rel < len(self._items):
+                        return self._items[rel]
+                    raise IndexError
+
+        # all_users behaves like the full list when sliced, but only fetches the current page
+        all_users = _PagedWindow(page_users, offset, total_users)
     if total_users == 0:
         await safe_edit_message_text(
             callback.message, 
@@ -128,7 +156,7 @@ async def list_users(callback: CallbackQuery):
     
     # Add back button
     keyboard.append([
-        InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin:users")
+        InlineKeyboardButton(text="🔙 Ortga", callback_data="admin:users")
     ])
     
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
