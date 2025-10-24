@@ -26,7 +26,7 @@ async def fetch_and_create_drugs(page_size=100):
                 try:
                     # Make GET request to API
                     async with http_session.get(
-                        f"{API_URL}?page={page}&size={page_size}"
+                            f"{API_URL}?page={page}&size={page_size}"
                     ) as resp:
                         # Check if response is successful
                         if resp.status != 200:
@@ -42,14 +42,14 @@ async def fetch_and_create_drugs(page_size=100):
                             break
 
                         content = result["content"]
-                        
+
                         # Check if there's data to process
                         if not content:
                             print("✅ No more data found, stopping.")
                             break
 
                         drugs = []
-                        
+
                         # Process each drug item
                         for item in content:
                             # Convert prescription type: 'Retsipli' -> True, 'Retsiptsiz' -> False

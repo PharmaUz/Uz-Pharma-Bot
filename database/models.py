@@ -10,10 +10,17 @@ from sqlalchemy import (
     ForeignKey, 
     Float,  # Added for coordinates
     UniqueConstraint,
-    func
+    func,
+    Enum
 )
 from sqlalchemy.orm import relationship
 from .db import Base
+import enum
+
+
+class UserStatus(enum.Enum):
+    REGULAR = "regular"
+    PHARMACY_ADMIN = "pharmacy_admin"
 
 
 class BaseModel(Base):
@@ -90,12 +97,12 @@ class Pharmacy(Base):
     is_active = Column(Boolean, default=True)
     is_24_hours = Column(Boolean, default=False)
     
-    # Timestamps - BU QATORLARNI QAYTARING
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     def __repr__(self):
         return f"<Pharmacy(name={self.name}, address={self.address}, lat={self.latitude}, lon={self.longitude})>"
+
 
 class PharmacyDrug(BaseModel):
     __tablename__ = "pharmacy_drugs"
@@ -188,3 +195,18 @@ class OrderItem(BaseModel):
 
     def __repr__(self):
         return f"<OrderItem(order_id={self.order_id}, drug_id={self.drug_id}, quantity={self.quantity})>"
+
+
+class User(Base):
+    """User model to store Telegram user information"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    telegram_id = Column(BigInteger, unique=True, nullable=False)  # Telegram user ID
+    username = Column(String, nullable=True)  # Telegram username
+    fullname = Column(String, nullable=False)  # Full name of the user
+    phone_number = Column(String, nullable=True)  # Phone number of the user
+    status = Column(Enum(UserStatus), default=UserStatus.REGULAR, nullable=False)  # User status
+
+    def __repr__(self):
+        return f"<User(telegram_id={self.telegram_id}, username={self.username}, fullname={self.fullname}, status={self.status})>"
