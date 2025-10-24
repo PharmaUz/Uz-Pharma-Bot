@@ -2,7 +2,9 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def get_pharmacy_menu():
-    """Dorixona egasi uchun inline menyu"""
+    """
+    Create an inline keyboard menu for pharmacy administrators.
+    """
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📋 Buyurtmalar", callback_data="pharmacy_orders")],
         [InlineKeyboardButton(text="⏳ Kutilayotgan", callback_data="pharmacy_pending")],

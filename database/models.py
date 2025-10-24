@@ -206,7 +206,9 @@ class User(Base):
     username = Column(String, nullable=True)  # Telegram username
     fullname = Column(String, nullable=False)  # Full name of the user
     phone_number = Column(String, nullable=True)  # Phone number of the user
-    status = Column(Enum(UserStatus), default=UserStatus.REGULAR, nullable=False)  # User status
+    status = Column(Enum(UserStatus, values_callable=lambda x: [e.value for e in x]), 
+                    default=UserStatus.REGULAR, 
+                    nullable=False)  # User status
 
     def __repr__(self):
         return f"<User(telegram_id={self.telegram_id}, username={self.username}, fullname={self.fullname}, status={self.status})>"

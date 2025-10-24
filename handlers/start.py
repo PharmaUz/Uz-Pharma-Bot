@@ -8,13 +8,17 @@ from aiogram.types import (
     ReplyKeyboardRemove
 )
 from keyboards import get_main_menu, get_pharmacy_menu
+from keyboards.admin_menu import admin_main_menu
 from sqlalchemy import select
 from database.models import Pharmacy, User, UserStatus
 from database.db import async_session
+from os import getenv
 
 from handlers.cooperation import ADMIN_ID
 
 router = Router()
+
+ADMIN_ID = int(getenv("ADMIN_ID"))
 
 @router.message(Command("start"))
 async def start_handler(message: types.Message):
@@ -27,6 +31,14 @@ async def start_handler(message: types.Message):
     async with async_session() as session:
         user_id = message.from_user.id
         username = message.from_user.username or message.from_user.full_name
+
+        # Check if the user is the admin
+        if user_id == ADMIN_ID:
+            await message.answer(
+                f"Salom, {username} 👋\n\nSiz admin sifatida tizimga kirdingiz!\nBu qisim keyingi versiyalar uchun, to'liq emas, kamchiliklar bor 📈",
+                reply_markup=admin_main_menu()
+            )
+            return
 
         # Check if the user already exists
         result = await session.execute(
@@ -46,7 +58,13 @@ async def start_handler(message: types.Message):
                 reply_markup=phone_button
             )
         else:
-            if existing_user.status == UserStatus.PHARMACY_ADMIN.value:
+            # Check if the user is a pharmacy admin by tg_id
+            pharmacy_admin = await session.execute(
+                select(Pharmacy).where(Pharmacy.tg_id == user_id)
+            )
+            pharmacy_admin = pharmacy_admin.scalar_one_or_none()
+
+            if pharmacy_admin:
                 await message.answer(
                     f"Salom, {username} 👋\n\nSiz dorixona admini sifatida tizimga kirdingiz!",
                     reply_markup=get_pharmacy_menu()
