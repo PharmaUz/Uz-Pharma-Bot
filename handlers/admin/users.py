@@ -13,6 +13,7 @@ from sqlalchemy.future import select
 
 from database.models import User
 from database.db import async_session
+from sqlalchemy import func
 
 router = Router()
 
@@ -71,10 +72,13 @@ async def list_users(callback: CallbackQuery):
     
     async with async_session() as session:
         # Get total count
-        count_result = await session.execute(select(User))
-        all_users = count_result.scalars().all()
-        total_users = len(all_users)
-    
+        # Get total count efficiently
+        total_users = await session.scalar(select(func.count(User.id)))
+
+        # Still fetch users (kept for existing pagination/slicing logic).
+        # Ordering by id makes pagination deterministic.
+        result = await session.execute(select(User).order_by(User.id))
+        all_users = result.scalars().all()
     if total_users == 0:
         await safe_edit_message_text(
             callback.message, 
@@ -97,7 +101,7 @@ async def list_users(callback: CallbackQuery):
     user_list = "\n".join([
         f"{idx + start_idx + 1}. {html.escape(user.fullname or 'Nomalum')} "
         f"(@{html.escape(user.username or 'N/A')}) - "
-        f"{html.escape(user.phone_number or 'Telefon raqami yoq')}"
+        f"{html.escape(user.phone_number or 'Telefon raqam mavjud emas!')}"
         for idx, user in enumerate(users_page)
     ])
     

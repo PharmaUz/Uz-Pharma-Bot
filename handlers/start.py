@@ -18,8 +18,6 @@ from handlers.cooperation import ADMIN_ID
 
 router = Router()
 
-ADMIN_ID = int(getenv("ADMIN_ID"))
-
 @router.message(Command("start"))
 async def start_handler(message: types.Message):
     """

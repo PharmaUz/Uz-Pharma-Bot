@@ -9,6 +9,7 @@ async def handle_settings_menu(callback: CallbackQuery):
     """
     Handle admin settings menu interactions.
     """
+    await callback.answer()
     await callback.message.edit_text(
         "Sozlamalar menyusi:",
         reply_markup=settings_menu()

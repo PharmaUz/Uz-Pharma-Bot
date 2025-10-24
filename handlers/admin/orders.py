@@ -9,6 +9,7 @@ async def handle_orders_menu(callback: CallbackQuery):
     """
     Handle order management menu interactions.
     """
+    await callback.answer()
     await callback.message.edit_text(
         "Buyurtmalarni boshqarish menyusi:",
         reply_markup=orders_menu()
