@@ -1,17 +1,14 @@
 # handlers/barcode_verification.py
 import os
 import io
-import re
 import logging
 import requests
-import pandas as pd
 from datetime import datetime
 from aiogram import Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from typing import Dict, Optional, Tuple
-import tempfile
 
 # Import barcode libraries
 try:
@@ -30,13 +27,11 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
-ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
 REQUEST_TIMEOUT = 30
 
 # FSM states for barcode verification
 class BarcodeVerificationState(StatesGroup):
     waiting_for_input = State()
-    waiting_for_metadata = State()
 
 
 def get_barcode_menu():
@@ -163,11 +158,13 @@ async def decode_barcode_from_image(image_bytes: bytes) -> Optional[Tuple[str, s
 async def query_pharmagency_api(code: str) -> Optional[Dict]:
     """
     Query PharmAgency API for drug information
+    Note: SSL verification is disabled as the API certificate may not be properly configured
     """
     try:
         url = "https://api.pharmagency.uz/drug-catalog-api/v2/referent-price/all"
         headers = {"Accept": "application/json", "User-Agent": "Mozilla/5.0"}
         
+        # SSL verification disabled due to API certificate issues
         response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT, verify=False)
         
         if response.status_code == 200:
@@ -188,10 +185,12 @@ async def query_pharmagency_api(code: str) -> Optional[Dict]:
 async def query_uzpharm_api(code: str) -> Optional[Dict]:
     """
     Query UzPharm-Control API for drug information
+    Note: SSL verification is disabled as the API certificate may not be properly configured
     """
     try:
         url = "https://www.uzpharm-control.uz/registries/api_mpip/server-response.php?draw=1&start=0&length=5000"
         
+        # SSL verification disabled due to API certificate issues
         response = requests.get(url, timeout=REQUEST_TIMEOUT, verify=False)
         
         if response.status_code == 200:
@@ -461,8 +460,8 @@ async def process_barcode_image(message: types.Message, state: FSMContext):
         waiting_msg = await message.answer("🔄 Rasm tahlil qilinmoqda...")
         
         file = await message.bot.get_file(photo.file_id)
-        file_bytes = await message.bot.download_file(file.file_path)
-        image_bytes = file_bytes.read()
+        file_bytes_io = await message.bot.download_file(file.file_path)
+        image_bytes = file_bytes_io.getvalue()
         
         # Decode barcode
         result = await decode_barcode_from_image(image_bytes)
