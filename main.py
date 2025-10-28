@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from loader import bot, dp
-from handlers import start, cooperation, feedback, filter, order
+from handlers import start, cooperation, feedback, filter, order, ai_assistant, barcode_verification
 from handlers.admin.router import router as admin_router
 
 from users import pharmacy
@@ -21,6 +21,8 @@ dp.include_router(feedback.router)
 dp.include_router(filter.router)
 dp.include_router(order.router)
 dp.include_router(pharmacy.router)
+dp.include_router(ai_assistant.router)
+dp.include_router(barcode_verification.router)
 dp.include_router(admin_router)
 
 
