@@ -3,12 +3,19 @@ import os
 import io
 import logging
 import requests
+import json
+import warnings
+import urllib3
 from datetime import datetime
 from aiogram import Router, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from typing import Dict, Optional, Tuple
+
+
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Import barcode libraries
 try:
@@ -155,52 +162,41 @@ async def decode_barcode_from_image(image_bytes: bytes) -> Optional[Tuple[str, s
         return None
 
 
-async def query_pharmagency_api(code: str) -> Optional[Dict]:
-    """
-    Query PharmAgency API for drug information
-    Note: SSL verification is disabled as the API certificate may not be properly configured
-    """
-    try:
-        url = "https://api.pharmagency.uz/drug-catalog-api/v2/referent-price/all"
-        headers = {"Accept": "application/json", "User-Agent": "Mozilla/5.0"}
-        
-        # SSL verification disabled due to API certificate issues
-        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT, verify=False)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if "result" in data and "content" in data["result"]:
-                # Search for matching registration code
-                for item in data["result"]["content"]:
-                    reg_num = str(item.get("registrationNumber", "")).strip()
-                    if code in reg_num or reg_num in code:
-                        return item
-        
-        return None
-    except Exception as e:
-        logger.error(f"PharmAgency API error: {e}")
-        return None
-
-
 async def query_uzpharm_api(code: str) -> Optional[Dict]:
     """
     Query UzPharm-Control API for drug information
-    Note: SSL verification is disabled as the API certificate may not be properly configured
     """
     try:
         url = "https://www.uzpharm-control.uz/registries/api_mpip/server-response.php?draw=1&start=0&length=5000"
+        headers = {
+            'Accept': 'application/json',
+            'Accept-Charset': 'UTF-8',
+            'Content-Type': 'application/json; charset=UTF-8'
+        }
         
-        # SSL verification disabled due to API certificate issues
-        response = requests.get(url, timeout=REQUEST_TIMEOUT, verify=False)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT, verify=False)
+        
+        content = response.content.decode('utf-8-sig')
         
         if response.status_code == 200:
-            data = response.json()
-            if "data" in data:
-                # Search for matching certificate number
-                for item in data["data"]:
-                    cert_num = str(item.get("certificate_number", "")).strip()
-                    if code in cert_num or cert_num in code:
-                        return item
+            try:
+                data = json.loads(content)
+                if "data" in data:
+                    for item in data["data"]:
+                        cert_num = str(item.get("certificate_number", "")).strip()
+                        if code in cert_num or cert_num in code:
+                            cleaned_item = {}
+                            for key, value in item.items():
+                                if isinstance(value, str):
+                                    cleaned_value = value.replace('\ufeff', '').strip()
+                                    cleaned_item[key] = cleaned_value
+                                else:
+                                    cleaned_item[key] = value
+                            return cleaned_item
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing error: {str(e)}")
+                logger.error(f"Raw response: {content[:200]}")
+                return None
         
         return None
     except Exception as e:
@@ -210,9 +206,7 @@ async def query_uzpharm_api(code: str) -> Optional[Dict]:
 
 def calculate_confidence_score(
     barcode_valid: bool,
-    found_in_pharmagency: bool,
-    found_in_uzpharm: bool,
-    has_price: bool
+    found_in_uzpharm: bool
 ) -> float:
     """
     Calculate confidence score based on validation results
@@ -220,16 +214,10 @@ def calculate_confidence_score(
     score = 0.0
     
     if barcode_valid:
-        score += 0.3
-    
-    if found_in_pharmagency:
-        score += 0.3
+        score += 0.5
     
     if found_in_uzpharm:
-        score += 0.3
-    
-    if has_price:
-        score += 0.1
+        score += 0.5
     
     return min(score, 1.0)
 
@@ -248,7 +236,6 @@ def determine_authenticity(confidence: float) -> str:
 
 def generate_explanation(
     barcode_valid: bool,
-    found_in_pharmagency: bool,
     found_in_uzpharm: bool,
     validation_error: str
 ) -> str:
@@ -260,13 +247,10 @@ def generate_explanation(
     if not barcode_valid:
         reasons.append(f"❌ Checksum xato: {validation_error}")
     
-    if not found_in_pharmagency:
-        reasons.append("⚠️ PharmAgency bazasida topilmadi")
-    
     if not found_in_uzpharm:
         reasons.append("⚠️ UzPharm-Control bazasida topilmadi")
     
-    if barcode_valid and (found_in_pharmagency or found_in_uzpharm):
+    if barcode_valid and found_in_uzpharm:
         reasons.append("✅ Ro'yxatdan o'tgan dori")
     
     return "\n".join(reasons) if reasons else "✅ Tekshiruv muvaffaqiyatli o'tdi"
@@ -291,17 +275,13 @@ async def verify_barcode(code: str, barcode_type: str = "UNKNOWN") -> Dict:
     # Validate format
     is_valid, validation_error = validate_barcode_format(code, barcode_type)
     
-    # Query APIs
-    pharmagency_data = await query_pharmagency_api(code)
+    # Query UzPharm API
     uzpharm_data = await query_uzpharm_api(code)
     
     # Calculate confidence
-    has_price = pharmagency_data and pharmagency_data.get("price") is not None
     confidence = calculate_confidence_score(
         is_valid,
-        pharmagency_data is not None,
-        uzpharm_data is not None,
-        has_price
+        uzpharm_data is not None
     )
     
     # Determine authenticity
@@ -310,7 +290,6 @@ async def verify_barcode(code: str, barcode_type: str = "UNKNOWN") -> Dict:
     # Generate explanation
     explanation = generate_explanation(
         is_valid,
-        pharmagency_data is not None,
         uzpharm_data is not None,
         validation_error
     )
@@ -325,7 +304,6 @@ async def verify_barcode(code: str, barcode_type: str = "UNKNOWN") -> Dict:
         "confidence": confidence,
         "explanation": explanation,
         "recommendation": recommendation,
-        "pharmagency_data": pharmagency_data,
         "uzpharm_data": uzpharm_data
     }
 
@@ -341,17 +319,6 @@ def format_verification_result(result: Dict) -> str:
     text += f"<b>Ishonch darajasi:</b> {result['confidence']:.0%}\n\n"
     text += f"<b>Tushuntirish:</b>\n{result['explanation']}\n\n"
     text += f"<b>Tavsiya:</b>\n{result['recommendation']}\n\n"
-    
-    # Add product details if found
-    if result['pharmagency_data']:
-        data = result['pharmagency_data']
-        text += f"<b>📦 Mahsulot ma'lumoti (PharmAgency):</b>\n"
-        if data.get('trademark'):
-            text += f"• Nomi: {data['trademark']}\n"
-        if data.get('manufacturer'):
-            text += f"• Ishlab chiqaruvchi: {data['manufacturer']}\n"
-        if data.get('price'):
-            text += f"• Narx: {data['price']} {data.get('currency', '')}\n"
     
     if result['uzpharm_data']:
         data = result['uzpharm_data']

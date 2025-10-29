@@ -1,5 +1,6 @@
 from aiogram import Router, types, F
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     InlineKeyboardMarkup, 
     InlineKeyboardButton, 
@@ -13,6 +14,7 @@ from sqlalchemy import select
 from database.models import Pharmacy, User, UserStatus
 from database.db import async_session
 from os import getenv
+from sqlalchemy.exc import IntegrityError
 
 from handlers.cooperation import ADMIN_ID
 
@@ -74,10 +76,11 @@ async def start_handler(message: types.Message):
                 )
 
 
-@router.message(F.contact)
-async def save_user_contact(message: types.Message):
+@router.message(F.contact, StateFilter(None))
+async def save_user_contact(message: types.Message, state: FSMContext):
     """
     Save the user's phone number and other details to the database.
+    Only handles contact when user is not in any FSM state.
     """
     async with async_session() as session:
         user_id = message.from_user.id
@@ -85,21 +88,38 @@ async def save_user_contact(message: types.Message):
         fullname = message.from_user.full_name
         phone_number = message.contact.phone_number
 
-        # Save user to the database
-        new_user = User(
-            telegram_id=user_id,
-            username=username,
-            fullname=fullname,
-            phone_number=phone_number,
-            status=UserStatus.REGULAR.value  # Use the lowercase string value of the enum
+        # Check if user already exists
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
         )
-        session.add(new_user)
-        await session.commit()
+        existing_user = result.scalar_one_or_none()
 
-        await message.answer(
-            "Rahmat! Telefon raqamingiz saqlandi. Endi asosiy menyudan foydalanishingiz mumkin.",
-            reply_markup=get_main_menu()
-        )
+        if existing_user:
+            # User already exists, just update phone number if needed
+            if existing_user.phone_number != phone_number:
+                existing_user.phone_number = phone_number
+                await session.commit()
+            
+            await message.answer(
+                "Siz allaqachon ro'yxatdan o'tgansiz! Asosiy menyudan foydalaning.",
+                reply_markup=get_main_menu()
+            )
+        else:
+            # Create new user
+            new_user = User(
+                telegram_id=user_id,
+                username=username,
+                fullname=fullname,
+                phone_number=phone_number,
+                status=UserStatus.REGULAR.value
+            )
+            session.add(new_user)
+            await session.commit()
+
+            await message.answer(
+                "Rahmat! Telefon raqamingiz saqlandi. Endi asosiy menyudan foydalanishingiz mumkin.",
+                reply_markup=get_main_menu()
+            )
 
         # Remove the phone number request button
         await message.answer(
