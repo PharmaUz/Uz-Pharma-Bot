@@ -194,6 +194,7 @@ def get_ai_menu():
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="💬 Savol berish", callback_data="ask_ai_question")],
+            [InlineKeyboardButton(text="🔍 Barcode tekshirish", callback_data="barcode_verify")],
             [InlineKeyboardButton(text="🗑️ Suhbatni tozalash", callback_data="clear_ai_chat")],
             [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back_to_main")]
         ]
