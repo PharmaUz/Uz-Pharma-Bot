@@ -27,4 +27,4 @@ yarl==1.22.0
 opencv-python-headless==4.10.0.84
 pyzbar==0.1.9
 pillow==11.0.0
-pandas==2.2.3
+pandas==2.3.3
