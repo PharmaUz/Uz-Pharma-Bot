@@ -31,7 +31,7 @@ async def start_handler(message: types.Message):
     async with async_session() as session:
         user_id = message.from_user.id
         username = message.from_user.username or message.from_user.full_name
-
+        print(user_id)
         # Check if the user is the admin
         if user_id == ADMIN_ID:
             await message.answer(
@@ -135,6 +135,7 @@ async def comment(message: types.Message):
     Sends the message to the admin for review.
     """
     user_id = message.from_user.id
+    print(user_id)
     username = message.from_user.username or message.from_user.full_name
     order_id = "12345"  # temporary placeholder
     comment_text = message.text
@@ -159,3 +160,24 @@ async def comment(message: types.Message):
         "❓ Noma'lum buyruq. Iltimos, asosiy menyudan foydalaning.", 
         reply_markup=get_main_menu()
     )
+
+@router.message()
+async def monitor_user_activity(message: types.Message):
+    """
+    Notify admin about any incoming message so you can see who is active.
+    Only sends minimal info (username and telegram id). skips admin messages.
+    """
+    user = message.from_user
+    if not user:
+        return
+    user_id = user.id
+    # avoid notifying for admin itself to prevent loops
+    if user_id == ADMIN_ID:
+        return
+
+    username = user.username or user.full_name or "NoName"
+    try:
+        await message.bot.send_message(ADMIN_ID, f"User active: {username} (id: {user_id})")
+    except Exception as e:
+        # keep quiet on failure; printing helps during development
+        print("Failed to notify admin:", e)

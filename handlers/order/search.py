@@ -21,36 +21,11 @@ async def show_main_menu(message: types.Message, user: types.User):
     """
     Display main menu to user.
     """
-    main_keyboard = types.InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                types.InlineKeyboardButton(
-                    text="🛒 Savatni ko'rish",
-                    callback_data="view_cart"
-                ),
-                types.InlineKeyboardButton(
-                    text="🔍 Dori qidirish",
-                    callback_data="buy_drug"
-                )
-            ],
-            [
-                types.InlineKeyboardButton(
-                    text="📋 Buyurtmalarim",
-                    callback_data="my_orders"
-                ),
-                types.InlineKeyboardButton(
-                    text="ℹ️ Ma'lumot",
-                    callback_data="info"
-                )
-            ]
-        ]
-    )
-
     await message.answer(
         f"👋 Assalomu alaykum, {user.first_name}!\n\n"
         "🏥 Dorixona botiga xush kelibsiz!\n"
         "Kerakli bo'limni tanlang:",
-        reply_markup=main_keyboard,
+        reply_markup=get_main_menu(),
         parse_mode="HTML"
     )
 
