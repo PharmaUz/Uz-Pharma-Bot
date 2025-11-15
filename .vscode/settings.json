@@ -4,7 +4,7 @@
   "python.venvPath": "venv",
 
   // ---- PYLANCE ----
-  "python.analysis.typeCheckingMode": "basic",          // Type hint tekshiruvlarini o‘chiradi
+  "python.analysis.typeCheckingMode": "off",          // Type hint tekshiruvlarini o‘chiradi
   "python.analysis.diagnosticMode": "openFilesOnly",    // Faqat ochilgan fayllarni tahlil qiladi
   "python.analysis.autoImportCompletions": true,
   "python.analysis.useLibraryCodeForTypes": true,
