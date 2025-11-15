@@ -15,6 +15,7 @@ from database.models import Pharmacy, User, UserStatus
 from database.db import async_session
 from os import getenv
 from sqlalchemy.exc import IntegrityError
+from aiogram.fsm.state import State, StatesGroup
 
 from handlers.cooperation import ADMIN_ID
 
@@ -128,56 +129,53 @@ async def save_user_contact(message: types.Message, state: FSMContext):
         )
 
 
-@router.message(F.text.startswith("/"))
-async def comment(message: types.Message):
+class SendMessageState(StatesGroup):
+    waiting_for_user_id = State()
+    waiting_for_message = State()
+
+
+@router.message(Command("send"))
+async def send_message_command(message: types.Message, state: FSMContext):
     """
-    Handle unknown or unrecognized commands entered by users.
-    Sends the message to the admin for review.
+    Handle the /send command for the admin.
+    Ask the admin for the user ID to whom the message should be sent.
     """
     user_id = message.from_user.id
-    print(user_id)
-    username = message.from_user.username or message.from_user.full_name
-    order_id = "12345"  # temporary placeholder
-    comment_text = message.text
-
-    # Buttons for admin to confirm or reject the message
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Qabul qilish", callback_data=f"confirm_comment:{order_id}:{user_id}"),
-                InlineKeyboardButton(text="Bekor qilish", callback_data=f"cancel_comment:{order_id}:{user_id}")
-            ]
-        ]
-    )
-
-    # Send message to admin
-    await message.bot.send_message(
-        ADMIN_ID,
-        f"🆔 Order ID: {order_id}\n👤 User: @{username}\n💬 {comment_text}",
-        reply_markup=keyboard,
-    )
-    await message.answer(
-        "❓ Noma'lum buyruq. Iltimos, asosiy menyudan foydalaning.", 
-        reply_markup=get_main_menu()
-    )
-
-@router.message()
-async def monitor_user_activity(message: types.Message):
-    """
-    Notify admin about any incoming message so you can see who is active.
-    Only sends minimal info (username and telegram id). skips admin messages.
-    """
-    user = message.from_user
-    if not user:
-        return
-    user_id = user.id
-    # avoid notifying for admin itself to prevent loops
-    if user_id == ADMIN_ID:
+    if user_id != ADMIN_ID:
+        await message.answer("❌ Ushbu buyruq faqat admin uchun mavjud.")
         return
 
-    username = user.username or user.full_name or "NoName"
+    await message.answer("📩 Iltimos, xabar yubormoqchi bo'lgan foydalanuvchining ID raqamini kiriting:")
+    await state.set_state(SendMessageState.waiting_for_user_id)
+
+
+@router.message(SendMessageState.waiting_for_user_id)
+async def get_user_id(message: types.Message, state: FSMContext):
+    """
+    Save the user ID entered by the admin and ask for the message to send.
+    """
     try:
-        await message.bot.send_message(ADMIN_ID, f"User active: {username} (id: {user_id})")
+        user_id = int(message.text)
+        await state.update_data(user_id=user_id)
+        await message.answer("✉️ Endi yubormoqchi bo'lgan xabaringizni kiriting:")
+        await state.set_state(SendMessageState.waiting_for_message)
+    except ValueError:
+        await message.answer("❌ Iltimos, to'g'ri ID raqamini kiriting.")
+
+
+@router.message(SendMessageState.waiting_for_message)
+async def send_message_to_user(message: types.Message, state: FSMContext):
+    """
+    Send the message entered by the admin to the specified user.
+    """
+    data = await state.get_data()
+    user_id = data.get("user_id")
+    text = message.text
+
+    try:
+        await message.bot.send_message(user_id, text)
+        await message.answer("✅ Xabar muvaffaqiyatli yuborildi!")
     except Exception as e:
-        # keep quiet on failure; printing helps during development
-        print("Failed to notify admin:", e)
+        await message.answer(f"❌ Xabar yuborilmadi. Xatolik: {e}")
+
+    await state.clear()
