@@ -172,6 +172,10 @@ async def send_message_to_user(message: types.Message, state: FSMContext):
     user_id = data.get("user_id")
     text = message.text
 
+    if user_id is None:
+        await message.answer("❌ Foydalanuvchi ID topilmadi. Iltimos, /send buyrug'ini qayta boshlang.")
+        await state.clear()
+        return
     try:
         await message.bot.send_message(user_id, text)
         await message.answer("✅ Xabar muvaffaqiyatli yuborildi!")
