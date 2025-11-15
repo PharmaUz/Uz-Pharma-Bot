@@ -160,7 +160,7 @@ async def get_user_id(message: types.Message, state: FSMContext):
         await message.answer("✉️ Endi yubormoqchi bo'lgan xabaringizni kiriting:")
         await state.set_state(SendMessageState.waiting_for_message)
     except ValueError:
-        await message.answer("❌ Iltimos, to'g'ri ID raqamini kiriting.")
+        await message.answer("❌ Iltimos, to'g'ri ID raqamini kiriting.\n\nQayta urinib ko'ring yoki bekor qilish uchun /cancel buyrug'ini yuboring.")
 
 
 @router.message(SendMessageState.waiting_for_message)
